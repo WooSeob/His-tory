@@ -1,0 +1,305 @@
+//////////////////////////////////
+// 2016250033 변우섭 			//
+// Date(start) : 16.12.25 pm10  //
+//////////////////////////////////
+//Except : Game Rule
+
+#include <stdio.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdbool.h>
+#include <conio.h>
+
+#define SIZE 30 
+#define UP 72 
+#define DOWN 80 
+#define RIGHT 77 
+#define LEFT 75 
+#define ENTER 13
+
+//  <GlOBAL VARIABLE> **************************************************************************************
+int map[SIZE][SIZE];//맵 
+int TurnCnt;//턴 카운트 
+int wait=0;	//선택 모드에서 한번만 맵 업데이트 하기위함 
+int TURN;	//1: USER 1
+			//2: USER 2
+
+
+//  <STRUCT>      ******************************************************************************************
+typedef struct
+{
+	int x;
+	int y;
+}CURS;
+
+
+//  <PROTO TYPE>  ******************************************************************************************
+CURS GetCurrentPos(void);
+void CursorVisible(bool blnCursorVisible);
+void gotoxy(CURS pos);
+void SetTextColor(int color_number);
+void Initializing(int arr[SIZE][SIZE]);
+void UI(CURS OriginPos,int data);
+void DrawMap(int arr[SIZE][SIZE], CURS pos);
+void UpdateMap(CURS pos, int color, int mode);
+void Move(CURS pos, int Direction);
+void SelectMode(void);
+
+// <MAIN FUNC>  **********************************************************************************************
+int main(void){
+
+	system("mode con:cols=78 lines=31");// 콘솔창 사이즈 맞춤 
+	CursorVisible(false);	//커서 숨기기 
+	
+	Initializing(map);		//맵 초기화 
+	DrawMap(map,{(SIZE*2)/2 ,(SIZE/2)-1});	//맵 그리기, 스타트 커서 설정(중앙) 
+
+	wait=0;	//한번 UpdateMap 하기위해 
+	TURN=1;	//유저1 부터 시작 
+	
+	SelectMode();	//Select Mode 호출 (게임 시작)
+	 
+	return 0;
+
+}
+
+// <FUNCTION>  **********************************************************************************************
+
+// 콘솔 그래픽을 위한,,(커서위치, 색깔 제어) 
+CURS GetCurrentPos(void)						//커서 위치 받아오기 
+{
+	CURS CurrentPos;
+	
+	CONSOLE_SCREEN_BUFFER_INFO curInfo;
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &curInfo);
+	 		
+	CurrentPos.x = curInfo.dwCursorPosition.X;
+	CurrentPos.y = curInfo.dwCursorPosition.Y;
+	
+	return CurrentPos;
+}
+void CursorVisible(bool blnCursorVisible){    // Console.CursorVisible = false;
+	CONSOLE_CURSOR_INFO cursorInfo;
+	GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+	cursorInfo.bVisible = blnCursorVisible;
+	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+}
+
+void gotoxy(CURS pos){
+	COORD cur = {pos.x, pos.y};
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE),cur);
+}
+
+void SetTextColor(int color_number){
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color_number);
+}
+
+
+
+void Initializing(int arr[SIZE][SIZE]){		//맵 초기화 
+	srand(time(NULL));
+	
+	int i,j;
+	for(i=0; i<SIZE; i++)
+	{
+		for(j=0; j<SIZE; j++)
+		{
+			arr[i][j]=0;
+		}
+	}
+}
+void UI(CURS OriginPos,int data)			// UI 드로잉 
+{
+	CURS pos = {(SIZE*2)+2,2};
+	gotoxy(pos);
+	printf("Turn : %d, %d",TurnCnt, data);
+	pos.y++;
+	gotoxy(pos);
+	printf("             ");
+	gotoxy(pos);
+	printf("Now : %d,%d",OriginPos.x/2, OriginPos.y);
+	
+	gotoxy(OriginPos);
+	
+}
+
+void DrawMap(int arr[SIZE][SIZE], CURS pos){	//맵 배열을 읽어와서 쫙 그려줌 
+	int i,j;
+	
+	for(i=0; i<SIZE; i++){
+		for(j=0; j<SIZE; j++){
+			
+			switch(arr[i][j])
+			{
+				case 0:					// 0 : 빈칸 
+					printf("□");
+					break;
+					
+				case 1:					// 1 : USER 1의 수, 파랑 
+					SetTextColor(1);
+					printf("●") ;
+					SetTextColor(7);
+					break;
+					
+				case 2:					// 2 : USER 2의 수, 빨강 
+					SetTextColor(4);
+					printf("●") ;
+					SetTextColor(7);
+					break;
+					
+			}
+
+		}
+		printf("\n");
+	}
+	
+	UI(pos,1);
+	UpdateMap(pos, 3,1);
+}
+
+void UpdateMap(CURS pos, int color, int mode){	//한칸 단위로 맵 업데이트 
+	
+	switch(mode)
+	{
+		case 1: //select
+			switch(map[pos.y][pos.x/2])		// Map상의 현재위치 정보를 불러와서 덮어씌운다 
+			{
+				case 0:
+					gotoxy(pos);
+					SetTextColor(color);
+					printf("●");
+					gotoxy(pos); 
+					SetTextColor(7);
+					break;
+					
+				case 1:
+					gotoxy(pos);
+					SetTextColor(1);
+					printf("○");
+					gotoxy(pos); 
+					SetTextColor(7);
+					break;
+					
+				case 2:
+					gotoxy(pos);
+					SetTextColor(4);
+					printf("○");
+					gotoxy(pos); 
+					SetTextColor(7);
+					break;
+			}
+			break;
+			
+		case 2:	//move
+			switch(map[pos.y][pos.x/2])		// Map상의 현재위치 정보를 불러와서 덮어씌운다 
+			{
+				case 0:
+					gotoxy(pos);
+					printf("□");
+					gotoxy(pos);
+					break;
+					
+				case 1:
+					gotoxy(pos);
+					SetTextColor(1);
+					printf("●") ;
+					SetTextColor(7);
+					gotoxy(pos);
+					break;
+					
+				case 2:
+					gotoxy(pos);
+					SetTextColor(4);
+					printf("●") ;
+					SetTextColor(7);
+					gotoxy(pos);
+					break;
+			}	
+			break;
+			
+		case 3:
+			break;
+	}
+	
+	UI(pos,map[pos.y][pos.x/2]);
+	wait=1;
+}
+
+void Move(CURS pos, int Direction)
+{
+	CURS temp=pos;
+	
+	switch(Direction)
+	{
+		case UP:
+			if(pos.y>0)				//오목판 범위내에서 
+			{
+				UpdateMap(temp,3,2);	// 현재 위치의 맵을 불러와서 덮어씌우고 (현재 포인터 지우고)
+				temp.y = temp.y-1;		// 한칸 이동 
+				UpdateMap(temp,3,1);	// select mode를 한칸 이동시킨다 (포인터 한칸 이동)
+			}
+			break;
+			
+		case DOWN:
+			if(pos.y<SIZE-1)		//오목판 범위내에서
+			{
+				UpdateMap(temp,3,2);
+				temp.y = temp.y +1;
+				UpdateMap(temp,3,1);
+			}
+			break;
+			
+		case RIGHT:
+			if(pos.x<(SIZE-1)*2)	//오목판 범위내에서
+			{
+				UpdateMap(temp,3,2);
+				temp.x=temp.x+2;
+				UpdateMap(temp,3,1);
+			}
+			break;
+			
+		case LEFT:
+			if(pos.x>0)				//오목판 범위내에서
+			{
+				UpdateMap(temp,3,2);
+				temp.x=temp.x-2;
+				UpdateMap(temp,3,1);
+			}
+			break;
+			
+		case ENTER:
+			if(map[pos.y][pos.x/2]==0)	//빈공간에만 돌을 놓을 수 있다. 
+			{
+				map[pos.y][pos.x/2]=TURN;	//map에 현재 턴을 기록 = 돌을 놓는다 
+				
+				TURN = (TURN==1)? 2 : 1;	// 턴 교체 
+				TurnCnt++;
+				
+				UI(pos,map[pos.x/2][pos.y]);
+				system("cls");				// 화면지움 
+				DrawMap(map,pos);			// 화면드로잉 
+			}
+			break;
+			
+	}
+}
+
+void SelectMode(void)
+{
+	while(1)
+	{
+		if(kbhit())	//입력 있으면 MOVE 호출 
+		{
+			Move(GetCurrentPos(), getch());
+		}
+		else		//키 입력 없으면 Select mode후 대기 
+		{	
+			if(wait==0){
+				UpdateMap(GetCurrentPos(), 3,1);
+				
+			} 
+		}
+	}
+}
+
